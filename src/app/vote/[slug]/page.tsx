@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { PollVoteForm } from "@/components/poll/PollVoteForm/PollVoteForm";
+import { VoteLayout } from "@/components/poll/VoteLayout/VoteLayout";
 import { ApiError } from "@/lib/errors";
 import { getPublicPoll } from "@/services/poll.service";
 
@@ -18,7 +18,7 @@ export default async function VotePage({ params }: PageProps) {
     }
 
     return (
-      <main className="pageShell publicPage">
+      <main className="votePageShell">
         <header className="voteHeader">
           <div className="voteHeaderText">
             <h1>{poll.title}</h1>
@@ -26,7 +26,7 @@ export default async function VotePage({ params }: PageProps) {
           </div>
         </header>
 
-        <PollVoteForm poll={poll} />
+        <VoteLayout poll={poll} />
       </main>
     );
   } catch (error) {

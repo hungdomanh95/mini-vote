@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Check, Send, X } from "lucide-react";
 import Image from "next/image";
 import { PollOptionCard } from "@/components/poll/PollOptionCard/PollOptionCard";
@@ -10,6 +9,7 @@ import type { PollOption, PublicPoll } from "@/types/poll.type";
 
 type PollVoteFormProps = {
   poll: PublicPoll;
+  onVoteSuccess?: () => void;
 };
 
 function getVoterToken(slug: string) {
@@ -30,8 +30,7 @@ function getVoterToken(slug: string) {
   return newToken;
 }
 
-export function PollVoteForm({ poll }: PollVoteFormProps) {
-  const router = useRouter();
+export function PollVoteForm({ poll, onVoteSuccess }: PollVoteFormProps) {
   const [voterName, setVoterName] = useState("");
   const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
   const [previewOption, setPreviewOption] = useState<PollOption | null>(null);
@@ -135,10 +134,7 @@ export function PollVoteForm({ poll }: PollVoteFormProps) {
     }
 
     setShowConfirm(false);
-
-    if (poll.showResultAfterVote) {
-      router.push(`/vote/${poll.slug}/result`);
-    }
+    onVoteSuccess?.();
   }
 
   const isClosed = poll.status !== "active";
@@ -177,12 +173,6 @@ export function PollVoteForm({ poll }: PollVoteFormProps) {
             <Send aria-hidden="true" size={18} />
             Gửi vote
           </button>
-
-          {poll.showResultAfterVote ? (
-            <Link className="ghostButton" href={`/vote/${poll.slug}/result`}>
-              Xem kết quả
-            </Link>
-          ) : null}
         </div>
       </div>
 
