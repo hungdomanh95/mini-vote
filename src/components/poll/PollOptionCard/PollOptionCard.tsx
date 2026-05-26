@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { Check, Maximize2 } from "lucide-react";
+import Image from "next/image";
 import type { PollOption } from "@/types/poll.type";
 
 type PollOptionCardProps = {
@@ -29,8 +30,13 @@ export function PollOptionCard({
       {option.imageUrl ? (
         <div className="optionImageArea">
           <span className="optionImageWrap">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img alt={option.label} className="optionImage" src={option.imageUrl} />
+            <Image
+              alt={option.label}
+              className="optionImage"
+              src={option.imageUrl}
+              fill
+              sizes="(max-width: 720px) 50vw, 220px"
+            />
           </span>
 
           <span className="optionSelectedOverlay" aria-hidden="true">

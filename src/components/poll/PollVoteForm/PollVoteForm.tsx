@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Send, X } from "lucide-react";
+import Image from "next/image";
 import { PollOptionCard } from "@/components/poll/PollOptionCard/PollOptionCard";
 import type { PollOption, PublicPoll } from "@/types/poll.type";
 
@@ -213,8 +214,7 @@ export function PollVoteForm({ poll }: PollVoteFormProps) {
                 {selectedOptions.map((option) => (
                   <div key={option.id} className="confirmThumb">
                     {option.imageUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img alt={option.label} src={option.imageUrl} />
+                      <Image alt={option.label} src={option.imageUrl} width={160} height={160} style={{ objectFit: "contain" }} />
                     ) : null}
                     <span>{option.label}</span>
                   </div>
