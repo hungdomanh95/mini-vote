@@ -18,6 +18,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({
       success: true,
       voteId: vote.id,
+      updated: vote.updated,
     });
   } catch (error) {
     return apiErrorResponse(error);

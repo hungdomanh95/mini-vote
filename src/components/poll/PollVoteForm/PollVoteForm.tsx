@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Send, X } from "lucide-react";
+import { Check, RefreshCw, Send, X } from "lucide-react";
 import Image from "next/image";
 import { PollOptionCard } from "@/components/poll/PollOptionCard/PollOptionCard";
 import type { PollOption, PublicPoll } from "@/types/poll.type";
@@ -10,6 +10,14 @@ import type { PollOption, PublicPoll } from "@/types/poll.type";
 type PollVoteFormProps = {
   poll: PublicPoll;
   onVoteSuccess?: () => void;
+};
+
+type VoteResponse = {
+  success?: boolean;
+  code?: string;
+  message?: string;
+  voteId?: string;
+  updated?: boolean;
 };
 
 function getVoterToken(slug: string) {
@@ -39,6 +47,7 @@ export function PollVoteForm({ poll, onVoteSuccess }: PollVoteFormProps) {
   const didDragRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [alreadyVotedMessage, setAlreadyVotedMessage] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +76,7 @@ export function PollVoteForm({ poll, onVoteSuccess }: PollVoteFormProps) {
       setTimeout(() => nameInputRef.current?.focus(), 50);
     } else {
       setConfirmError(null);
+      setAlreadyVotedMessage(null);
     }
   }, [showConfirm]);
 
@@ -81,6 +91,7 @@ export function PollVoteForm({ poll, onVoteSuccess }: PollVoteFormProps) {
 
   function toggleOption(optionId: string) {
     setError(null);
+    setAlreadyVotedMessage(null);
     if (!poll.allowMultiple) {
       setSelectedOptionIds([optionId]);
       return;
@@ -104,13 +115,10 @@ export function PollVoteForm({ poll, onVoteSuccess }: PollVoteFormProps) {
     setShowConfirm(true);
   }
 
-  async function handleConfirmSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submitSelectedVote(replaceExisting: boolean) {
     setConfirmError(null);
-
-    if (!voterName.trim()) {
-      setConfirmError("Bạn cần nhập tên");
-      return;
+    if (!replaceExisting) {
+      setAlreadyVotedMessage(null);
     }
 
     setIsSubmitting(true);
@@ -122,19 +130,47 @@ export function PollVoteForm({ poll, onVoteSuccess }: PollVoteFormProps) {
         voterName,
         optionIds: selectedOptionIds,
         voterToken: getVoterToken(poll.slug),
+        replaceExisting,
       }),
     });
-    const data = await response.json().catch(() => null);
+    const data = (await response.json().catch(() => null)) as VoteResponse | null;
 
     setIsSubmitting(false);
 
     if (!response.ok) {
+      if (data?.code === "ALREADY_VOTED") {
+        setConfirmError(null);
+        setAlreadyVotedMessage(data.message ?? "Bạn đã vote rồi");
+        return;
+      }
+
       setConfirmError(data?.message ?? "Không thể gửi vote");
       return;
     }
 
     setShowConfirm(false);
     onVoteSuccess?.();
+  }
+
+  async function handleConfirmSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!voterName.trim()) {
+      setConfirmError("Bạn cần nhập tên");
+      return;
+    }
+
+    await submitSelectedVote(false);
+  }
+
+  async function handleReplaceVote() {
+    if (!voterName.trim()) {
+      setAlreadyVotedMessage(null);
+      setConfirmError("Bạn cần nhập tên");
+      return;
+    }
+
+    await submitSelectedVote(true);
   }
 
   const isClosed = poll.status !== "active";
@@ -220,36 +256,65 @@ export function PollVoteForm({ poll, onVoteSuccess }: PollVoteFormProps) {
                   disabled={isSubmitting}
                   placeholder="Nhập tên để xác nhận"
                   value={voterName}
-                  onChange={(e) => setVoterName(e.target.value)}
+                  onChange={(e) => {
+                    setVoterName(e.target.value);
+                    setAlreadyVotedMessage(null);
+                    setConfirmError(null);
+                  }}
                 />
               </label>
 
-              {confirmError ? (
-                <p className="alert error">
-                  {confirmError}
-                  {confirmError.includes("đã vote") ? (
-                    <>
-                      {" "}
-                      <Link href={`/vote/${poll.slug}/result`}>Xem kết quả</Link>
-                    </>
+              {alreadyVotedMessage ? (
+                <div className="replaceVoteNotice" role="status">
+                  <div>
+                    <strong>{alreadyVotedMessage}</strong>
+                    <p>Bạn có muốn đổi lựa chọn sang các mẫu đang chọn không?</p>
+                  </div>
+                  <div className="replaceVoteActions">
+                    <button
+                      className="ghostButton"
+                      disabled={isSubmitting}
+                      type="button"
+                      onClick={() => setShowConfirm(false)}
+                    >
+                      Giữ vote cũ
+                    </button>
+                    <button
+                      className="primaryButton"
+                      disabled={isSubmitting}
+                      type="button"
+                      onClick={() => void handleReplaceVote()}
+                    >
+                      <RefreshCw aria-hidden="true" size={16} />
+                      {isSubmitting ? "Đang đổi" : "Đổi lựa chọn"}
+                    </button>
+                  </div>
+                  {poll.showResultAfterVote ? (
+                    <Link href={`/vote/${poll.slug}/result`}>Xem kết quả hiện tại</Link>
                   ) : null}
-                </p>
+                </div>
               ) : null}
 
-              <div className="confirmActions">
-                <button
-                  className="ghostButton"
-                  disabled={isSubmitting}
-                  type="button"
-                  onClick={() => setShowConfirm(false)}
-                >
-                  Hủy
-                </button>
-                <button className="primaryButton" disabled={isSubmitting} type="submit">
-                  <Send aria-hidden="true" size={16} />
-                  {isSubmitting ? "Đang gửi…" : "Xác nhận gửi"}
-                </button>
-              </div>
+              {confirmError ? (
+                <p className="alert error">{confirmError}</p>
+              ) : null}
+
+              {!alreadyVotedMessage ? (
+                <div className="confirmActions">
+                  <button
+                    className="ghostButton"
+                    disabled={isSubmitting}
+                    type="button"
+                    onClick={() => setShowConfirm(false)}
+                  >
+                    Hủy
+                  </button>
+                  <button className="primaryButton" disabled={isSubmitting} type="submit">
+                    <Send aria-hidden="true" size={16} />
+                    {isSubmitting ? "Đang gửi" : "Xác nhận gửi"}
+                  </button>
+                </div>
+              ) : null}
             </form>
           </div>
         </div>
