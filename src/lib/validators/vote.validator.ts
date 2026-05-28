@@ -14,3 +14,5 @@ export const slugSchema = z
   .min(1)
   .max(120)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+
+export const voteIdSchema = z.string().uuid("Vote id không hợp lệ");

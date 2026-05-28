@@ -188,6 +188,7 @@ export async function submitVote(slug: string, body: SubmitVoteBody) {
       .update({
         voter_name: voterName,
         voter_token: nextToken,
+        created_at: new Date().toISOString(),
       })
       .eq("id", existingVote.id)
       .select("*")
@@ -233,4 +234,29 @@ export async function submitVote(slug: string, body: SubmitVoteBody) {
     ...mapVoteRow(voteRow),
     updated: false,
   };
+}
+
+export async function deleteVote(pollId: string, voteId: string) {
+  const supabase = getSupabaseAdmin();
+
+  const { data: vote, error: findError } = await supabase
+    .from("votes")
+    .select("id")
+    .eq("id", voteId)
+    .eq("poll_id", pollId)
+    .maybeSingle();
+
+  throwDatabaseError(findError, "Không thể kiểm tra vote");
+
+  if (!vote) {
+    throw new ApiError("VOTE_NOT_FOUND", "Không tìm thấy vote", 404);
+  }
+
+  const { error: deleteError } = await supabase
+    .from("votes")
+    .delete()
+    .eq("id", voteId)
+    .eq("poll_id", pollId);
+
+  throwDatabaseError(deleteError, "Không thể xóa vote");
 }

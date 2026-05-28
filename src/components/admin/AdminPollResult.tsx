@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Users } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Users } from "lucide-react";
 import { formatDate, formatPercent } from "@/lib/format";
 import type { AdminPollResultDetail } from "@/types/vote.type";
 import { AdminLoginPanel } from "./AdminLoginPanel";
@@ -19,6 +19,7 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
   const [needsAuth, setNeedsAuth] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingVoteId, setDeletingVoteId] = useState<string | null>(null);
 
   const loadResult = useCallback(async () => {
     setIsLoading(true);
@@ -44,6 +45,37 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
     setResult(data.result);
     setNeedsAuth(false);
   }, [pollId]);
+
+  async function handleDeleteVote(vote: AdminPollResultDetail["voters"][number]) {
+    const voterName = vote.voterName.trim() || "Không tên";
+    const ok = window.confirm(`Xóa vote của "${voterName}"?`);
+
+    if (!ok) {
+      return;
+    }
+
+    setError(null);
+    setDeletingVoteId(vote.id);
+
+    const response = await fetch(`/api/admin/polls/${pollId}/votes/${vote.id}`, {
+      method: "DELETE",
+    });
+    const data = await response.json().catch(() => null);
+
+    setDeletingVoteId(null);
+
+    if (response.status === 401) {
+      setNeedsAuth(true);
+      return;
+    }
+
+    if (!response.ok) {
+      setError(data?.message ?? "Không thể xóa vote");
+      return;
+    }
+
+    await loadResult();
+  }
 
   useEffect(() => {
     void loadResult();
@@ -175,6 +207,15 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
                         <h3>{vote.voterName.trim() || "Không tên"}</h3>
                         <p>{formatDate(vote.createdAt)}</p>
                       </div>
+                      <button
+                        className="smallIconButton danger adminVoterDeleteButton"
+                        disabled={deletingVoteId === vote.id}
+                        title={`Xóa vote của ${vote.voterName.trim() || "Không tên"}`}
+                        type="button"
+                        onClick={() => void handleDeleteVote(vote)}
+                      >
+                        <Trash2 aria-hidden="true" size={16} />
+                      </button>
                     </div>
 
                     <div className="adminVoteSelections">
