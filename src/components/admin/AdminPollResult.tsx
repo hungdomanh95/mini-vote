@@ -3,13 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Users, X } from "lucide-react";
 import { formatDate, formatPercent } from "@/lib/format";
 import type { AdminPollResultDetail } from "@/types/vote.type";
 import { AdminLoginPanel } from "./AdminLoginPanel";
 
 type AdminPollResultProps = {
   pollId: string;
+};
+
+type PreviewImage = {
+  imageUrl: string;
+  label: string;
+  eyebrow: string;
 };
 
 const RANK_COLORS = ["#f59e0b", "#94a3b8", "#b45309"];
@@ -20,6 +26,7 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingVoteId, setDeletingVoteId] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<PreviewImage | null>(null);
 
   const loadResult = useCallback(async () => {
     setIsLoading(true);
@@ -89,6 +96,19 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
     ? [...result.options].sort((a, b) => b.voteCount - a.voteCount)
     : [];
   const maxVotes = sortedOptions[0]?.voteCount ?? 0;
+  const votersByOptionId = new Map<string, Array<{ id: string; name: string }>>();
+
+  if (result) {
+    for (const vote of result.voters) {
+      const voterName = vote.voterName.trim() || "Không tên";
+
+      for (const selection of vote.selections) {
+        const current = votersByOptionId.get(selection.id) ?? [];
+        current.push({ id: vote.id, name: voterName });
+        votersByOptionId.set(selection.id, current);
+      }
+    }
+  }
 
   return (
     <main className="pageShell adminResultPage">
@@ -135,6 +155,7 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
                 const isTop3 = rank <= 3;
                 const rankColor = isTop3 ? RANK_COLORS[index] : undefined;
                 const barWidth = maxVotes > 0 ? (option.voteCount / maxVotes) * 100 : 0;
+                const voterNames = votersByOptionId.get(option.id) ?? [];
 
                 return (
                   <li
@@ -145,8 +166,20 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
                       {rank}
                     </span>
 
-                    <span className="adminResultThumb">
-                      {option.imageUrl ? (
+                    {option.imageUrl ? (
+                      <button
+                        aria-label={`Mở ảnh ${option.label}`}
+                        className="adminResultThumb adminImagePreviewButton"
+                        title="Xem ảnh lớn"
+                        type="button"
+                        onClick={() =>
+                          setPreviewImage({
+                            imageUrl: option.imageUrl ?? "",
+                            label: option.label,
+                            eyebrow: "Option",
+                          })
+                        }
+                      >
                         <Image
                           alt={option.label}
                           height={64}
@@ -154,10 +187,12 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
                           width={64}
                           style={{ objectFit: "contain" }}
                         />
-                      ) : (
+                      </button>
+                    ) : (
+                      <span className="adminResultThumb">
                         <span>{option.label.trim().charAt(0).toUpperCase()}</span>
-                      )}
-                    </span>
+                      </span>
+                    )}
 
                     <div className="adminResultRankContent">
                       <div className="adminResultRankTopline">
@@ -174,6 +209,20 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
                         />
                       </div>
                       <small>{option.voteCount} vote</small>
+                      <div
+                        aria-label={`Người chọn ${option.label}`}
+                        className="adminResultVoterNames"
+                      >
+                        {voterNames.length > 0 ? (
+                          voterNames.map((voter) => (
+                            <span className="adminResultVoterName" key={voter.id}>
+                              {voter.name}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="adminResultVoterEmpty">Chưa có ai chọn</span>
+                        )}
+                      </div>
                     </div>
                   </li>
                 );
@@ -220,9 +269,21 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
 
                     <div className="adminVoteSelections">
                       {vote.selections.length > 0 ? (
-                        vote.selections.map((selection) => (
-                          <span className="adminVoteSelectionChip" key={selection.id}>
-                            {selection.imageUrl ? (
+                        vote.selections.map((selection) =>
+                          selection.imageUrl ? (
+                            <button
+                              className="adminVoteSelectionChip adminVoteSelectionButton"
+                              key={selection.id}
+                              title="Xem ảnh lớn"
+                              type="button"
+                              onClick={() =>
+                                setPreviewImage({
+                                  imageUrl: selection.imageUrl ?? "",
+                                  label: selection.label,
+                                  eyebrow: vote.voterName.trim() || "Không tên",
+                                })
+                              }
+                            >
                               <Image
                                 alt={selection.label}
                                 height={34}
@@ -230,10 +291,14 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
                                 width={34}
                                 style={{ objectFit: "contain" }}
                               />
-                            ) : null}
-                            {selection.label}
-                          </span>
-                        ))
+                              {selection.label}
+                            </button>
+                          ) : (
+                            <span className="adminVoteSelectionChip" key={selection.id}>
+                              {selection.label}
+                            </span>
+                          ),
+                        )
                       ) : (
                         <span className="adminVoteSelectionEmpty">Không có lựa chọn</span>
                       )}
@@ -244,6 +309,39 @@ export function AdminPollResult({ pollId }: AdminPollResultProps) {
             )}
           </article>
         </section>
+      ) : null}
+
+      {previewImage ? (
+        <div
+          aria-label={`Ảnh ${previewImage.label}`}
+          aria-modal="true"
+          className="imageLightbox"
+          role="dialog"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="imageLightboxPanel" onClick={(event) => event.stopPropagation()}>
+            <button
+              aria-label="Đóng ảnh"
+              className="lightboxClose"
+              type="button"
+              onClick={() => setPreviewImage(null)}
+            >
+              <X aria-hidden="true" size={22} />
+            </button>
+
+            <div className="lightboxImageWrap adminLightboxImageWrap">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img alt={previewImage.label} src={previewImage.imageUrl} />
+            </div>
+
+            <div className="lightboxFooter">
+              <div>
+                <p className="lightboxEyebrow">{previewImage.eyebrow}</p>
+                <h2>{previewImage.label}</h2>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : null}
     </main>
   );

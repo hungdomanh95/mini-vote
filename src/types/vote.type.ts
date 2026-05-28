@@ -20,6 +20,15 @@ export type PollResultOption = Pick<PollOption, "id" | "label" | "imageUrl"> & {
   percentage: number;
 };
 
+export type PollResultVoteSelection = Pick<PollOption, "id" | "label" | "imageUrl">;
+
+export type PollResultVoter = {
+  id: string;
+  voterName: string;
+  createdAt: string;
+  selections: PollResultVoteSelection[];
+};
+
 export type PollResult = {
   pollId: string;
   title: string;
@@ -29,17 +38,11 @@ export type PollResult = {
   totalVotes: number;
   totalSelections: number;
   options: PollResultOption[];
+  voters: PollResultVoter[];
 };
 
-export type AdminVoteSelection = Pick<PollOption, "id" | "label" | "imageUrl">;
+export type AdminVoteSelection = PollResultVoteSelection;
 
-export type AdminVoteRecord = {
-  id: string;
-  voterName: string;
-  createdAt: string;
-  selections: AdminVoteSelection[];
-};
+export type AdminVoteRecord = PollResultVoter;
 
-export type AdminPollResultDetail = PollResult & {
-  voters: AdminVoteRecord[];
-};
+export type AdminPollResultDetail = PollResult;
